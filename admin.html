@@ -1,0 +1,461 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Game Multi-Avatar Admin</title>
+<style>
+  * { box-sizing: border-box; }
+  body { font-family: Arial, sans-serif; background: #12161f; color: #eee; margin: 0; padding: 16px; }
+  .box { max-width: 680px; margin: 0 auto; }
+  .card { background: #1e2433; border-radius: 12px; padding: 18px; margin-bottom: 16px; border: 1px solid rgba(255,255,255,0.08); }
+  h1 { font-size: 22px; color: #ffc107; margin-top: 0; }
+  h3 { margin: 0 0 12px; color: #90caf9; font-size: 17px; }
+  
+  .input-wrap {
+    position: relative;
+    width: 100%;
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+  }
+  input[type=email], input[type=password], input[type=text] {
+    width: 100%; padding: 12px;
+    border-radius: 8px; border: 1px solid #333; background: #0d1117; color: #fff; font-size: 15px;
+    outline: none;
+  }
+  .input-wrap input {
+    padding-right: 90px;
+  }
+
+  /* Password Toggle Button */
+  .toggle-pwd {
+    position: absolute;
+    right: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: #252d3d !important;
+    border: 1px solid #ffc107 !important;
+    color: #ffc107 !important;
+    font-size: 12px;
+    font-weight: bold;
+    cursor: pointer;
+    padding: 6px 12px !important;
+    border-radius: 6px;
+    margin: 0 !important;
+    z-index: 999;
+    pointer-events: auto;
+  }
+  .toggle-pwd:active { transform: translateY(-50%) scale(0.92); }
+
+  button {
+    padding: 10px 18px; border: 0; border-radius: 8px; background: #ffc107;
+    color: #111; font-weight: bold; font-size: 14px; cursor: pointer; margin: 4px 4px 0 0;
+  }
+  button:active { transform: scale(0.96); }
+  button.red { background: #e53935; color: #fff; }
+  button.green { background: #2e7d32; color: #fff; }
+  button.blue { background: #1976d2; color: #fff; }
+  button.grey { background: #444; color: #fff; }
+
+  .avatar-item {
+    display: flex; align-items: center; justify-content: space-between;
+    background: #161a24; padding: 12px; border-radius: 10px; margin-bottom: 10px;
+    border: 1px solid #2d3748; flex-wrap: wrap; gap: 10px;
+  }
+  .avatar-item.active-item { border: 2px solid #00e676; }
+  .avatar-item.editing-item { border: 2px solid #ffc107; background: #1c2230; }
+  .avatar-left { display: flex; align-items: center; flex: 1; min-width: 200px; }
+  .avatar-thumb {
+    width: 65px; height: 85px; object-fit: contain; background: #000;
+    border-radius: 6px; margin-right: 12px; border: 1px solid rgba(255,255,255,0.1);
+  }
+  .avatar-meta { flex-grow: 1; }
+  .sound-group { background: #161b26; padding: 12px; border-radius: 8px; margin-bottom: 10px; }
+  .sound-group label { font-size: 13px; display: block; margin-bottom: 4px; color: #ffc107; font-weight: bold; }
+  .sound-status { font-size: 12px; color: #90caf9; margin-bottom: 6px; word-break: break-all; }
+  #msg { font-weight: bold; margin: 10px 0; padding: 12px; border-radius: 8px; display: none; line-height: 1.4; }
+  .hidden { display: none !important; }
+</style>
+</head>
+<body>
+<div class="box">
+  <h1>[ADMIN] Multi-Avatar Manager</h1>
+  <div id="msg"></div>
+
+  <!-- LOGIN CARD -->
+  <div id="loginCard" class="card">
+    <h3>Admin Login</h3>
+    
+    <div class="input-wrap">
+      <input id="em" type="email" placeholder="Admin email">
+    </div>
+
+    <div class="input-wrap">
+      <input id="pw" type="password" placeholder="Password">
+      <button type="button" id="togglePwBtn" class="toggle-pwd">SHOW</button>
+    </div>
+
+    <button type="button" id="loginBtn" onclick="doLogin()">Login</button>
+  </div>
+
+  <!-- MAIN ADMIN PANEL -->
+  <div id="panel" class="hidden">
+    <!-- Existing Avatars List -->
+    <div class="card">
+      <h3>Saved Avatars</h3>
+      <div id="avatarList">Loading avatars...</div>
+    </div>
+
+    <!-- Create or Edit Avatar Form -->
+    <div class="card" id="formCard">
+      <h3 id="formTitle">Add New Avatar</h3>
+      
+      <input type="text" id="newAvName" placeholder="Avatar Name (e.g. Hero, Runner)">
+      
+      <div style="margin-bottom:14px;">
+        <label style="display:block;margin-bottom:6px;font-size:14px;color:#ffc107;font-weight:bold;">
+          Avatar Image (PNG transparent):
+        </label>
+        <div id="status_img" class="sound-status"></div>
+        <input type="file" id="newAvImg" accept="image/png,image/webp,image/*">
+      </div>
+
+      <div class="sound-group">
+        <label>Car Collision Sound (MP3):</label>
+        <div id="status_car" class="sound-status"></div>
+        <input type="file" id="snd_car" accept="audio/*">
+        <button type="button" class="red" style="font-size:11px;padding:3px 8px;margin-top:4px;" onclick="clearAudioField('sound_car')">Remove Sound</button>
+      </div>
+
+      <div class="sound-group">
+        <label>Wood Barrier Sound (MP3):</label>
+        <div id="status_wood" class="sound-status"></div>
+        <input type="file" id="snd_wood" accept="audio/*">
+        <button type="button" class="red" style="font-size:11px;padding:3px 8px;margin-top:4px;" onclick="clearAudioField('sound_wood')">Remove Sound</button>
+      </div>
+
+      <div class="sound-group">
+        <label>Signboard Sound (MP3):</label>
+        <div id="status_signboard" class="sound-status"></div>
+        <input type="file" id="snd_signboard" accept="audio/*">
+        <button type="button" class="red" style="font-size:11px;padding:3px 8px;margin-top:4px;" onclick="clearAudioField('sound_signboard')">Remove Sound</button>
+      </div>
+
+      <div class="sound-group">
+        <label>Coin Collect Sound (MP3):</label>
+        <div id="status_coin" class="sound-status"></div>
+        <input type="file" id="snd_coin" accept="audio/*">
+        <button type="button" class="red" style="font-size:11px;padding:3px 8px;margin-top:4px;" onclick="clearAudioField('sound_coin')">Remove Sound</button>
+      </div>
+
+      <div style="margin-top: 14px;">
+        <button type="button" id="saveAvatarBtn" class="green" onclick="doSaveAvatar()">Save Avatar</button>
+        <button type="button" id="cancelEditBtn" class="grey hidden" onclick="cancelEditMode()">Cancel Edit</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <button type="button" class="grey" id="logoutBtn" onclick="doLogout()">Logout</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script src="supabase-config.js"></script>
+<script>
+var sb = null;
+try {
+  sb = window.supabase.createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY);
+} catch (e) {
+  alert('Supabase config error: ' + e.message);
+}
+
+function $(id) {
+  return document.getElementById(id);
+}
+
+function showMsg(text, isError) {
+  var el = $('msg');
+  el.textContent = text;
+  el.style.display = 'block';
+  el.style.color = isError ? '#ff8a80' : '#00e676';
+  el.style.background = isError ? 'rgba(229,57,53,0.2)' : 'rgba(46,125,50,0.2)';
+  el.style.border = isError ? '1px solid #e53935' : '1px solid #2e7d32';
+}
+
+// BULLETPROOF PASSWORD TOGGLE
+var toggleBtn = $('togglePwBtn');
+toggleBtn.addEventListener('click', function(e) {
+  e.preventDefault();
+  e.stopPropagation();
+  var pwInput = $('pw');
+  if (pwInput.getAttribute('type') === 'password') {
+    pwInput.setAttribute('type', 'text');
+    toggleBtn.textContent = 'HIDE';
+  } else {
+    pwInput.setAttribute('type', 'password');
+    toggleBtn.textContent = 'SHOW';
+  }
+});
+
+var avatars = [];
+var editingId = null;
+var currentEditData = {
+  image_url: '',
+  sound_car: '',
+  sound_wood: '',
+  sound_signboard: '',
+  sound_coin: ''
+};
+
+async function uploadFile(file, folder) {
+  var safe = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+  var path = folder + '/' + Date.now() + '-' + safe;
+  var res = await sb.storage.from('game-assets').upload(path, file, { upsert: false, contentType: file.type });
+  if (res.error) throw res.error;
+  return sb.storage.from('game-assets').getPublicUrl(path).data.publicUrl;
+}
+
+async function loadAvatars() {
+  var res = await sb.from('avatars').select('*').order('id', { ascending: true });
+  if (res.error) return showMsg('Error loading avatars: ' + res.error.message, true);
+  avatars = res.data || [];
+  renderAvatarList();
+}
+
+function renderAvatarList() {
+  var container = $('avatarList');
+  if (avatars.length === 0) {
+    container.innerHTML = '<p style="opacity:0.7;">No avatars found. Add one below.</p>';
+    return;
+  }
+  container.innerHTML = '';
+  for (var i = 0; i < avatars.length; i++) {
+    var av = avatars[i];
+    var isEditing = editingId === av.id;
+    var div = document.createElement('div');
+    div.className = 'avatar-item' + (av.is_active ? ' active-item' : '') + (isEditing ? ' editing-item' : '');
+
+    var soundInfo = 'Car: ' + (av.sound_car ? 'Custom' : 'Default') + ' | Wood: ' + (av.sound_wood ? 'Custom' : 'Default') + ' | Sign: ' + (av.sound_signboard ? 'Custom' : 'Default') + ' | Coin: ' + (av.sound_coin ? 'Custom' : 'Default');
+
+    div.innerHTML = '<div class="avatar-left">' +
+      '<img src="' + (av.image_url || 'pic.png') + '" class="avatar-thumb" alt="">' +
+      '<div class="avatar-meta">' +
+      '<strong style="font-size:16px;">' + av.name + '</strong> ' +
+      (av.is_active ? '<span style="color:#00e676;font-size:12px;font-weight:bold;">[ACTIVE]</span>' : '') +
+      (isEditing ? '<span style="color:#ffc107;font-size:12px;font-weight:bold;">[EDITING...]</span>' : '') +
+      '<div style="font-size:12px;opacity:0.75;margin-top:4px;">' + soundInfo + '</div>' +
+      '</div></div>' +
+      '<div>' +
+      '<button type="button" class="blue" onclick="startEdit(' + av.id + ')">Edit</button>' +
+      (!av.is_active ? '<button type="button" class="green" onclick="setActiveAvatar(' + av.id + ')">Set Active</button>' : '') +
+      '<button type="button" class="red" onclick="deleteAvatar(' + av.id + ')">Delete</button>' +
+      '</div>';
+
+    container.appendChild(div);
+  }
+}
+
+window.startEdit = function(id) {
+  var av = null;
+  for (var i = 0; i < avatars.length; i++) {
+    if (avatars[i].id === id) { av = avatars[i]; break; }
+  }
+  if (!av) return;
+
+  editingId = id;
+  currentEditData = {
+    image_url: av.image_url || '',
+    sound_car: av.sound_car || '',
+    sound_wood: av.sound_wood || '',
+    sound_signboard: av.sound_signboard || '',
+    sound_coin: av.sound_coin || ''
+  };
+
+  $('newAvName').value = av.name || '';
+  $('formTitle').textContent = 'Edit Avatar: ' + av.name;
+  $('saveAvatarBtn').textContent = 'Update Avatar Changes';
+  $('saveAvatarBtn').className = 'blue';
+  $('cancelEditBtn').classList.remove('hidden');
+
+  $('status_img').textContent = currentEditData.image_url ? 'Existing image loaded' : '';
+  $('status_car').textContent = currentEditData.sound_car ? 'Custom sound attached' : '';
+  $('status_wood').textContent = currentEditData.sound_wood ? 'Custom sound attached' : '';
+  $('status_signboard').textContent = currentEditData.sound_signboard ? 'Custom sound attached' : '';
+  $('status_coin').textContent = currentEditData.sound_coin ? 'Custom sound attached' : '';
+
+  $('newAvImg').value = '';
+  $('snd_car').value = '';
+  $('snd_wood').value = '';
+  $('snd_signboard').value = '';
+  $('snd_coin').value = '';
+
+  $('formCard').scrollIntoView({ behavior: 'smooth' });
+  renderAvatarList();
+  showMsg('Editing ' + av.name + '. Choose new files or click Update to save changes.', false);
+};
+
+window.cancelEditMode = function() {
+  editingId = null;
+  currentEditData = { image_url: '', sound_car: '', sound_wood: '', sound_signboard: '', sound_coin: '' };
+
+  $('newAvName').value = '';
+  $('formTitle').textContent = 'Add New Avatar';
+  $('saveAvatarBtn').textContent = 'Save Avatar';
+  $('saveAvatarBtn').className = 'green';
+  $('cancelEditBtn').classList.add('hidden');
+
+  $('status_img').textContent = '';
+  $('status_car').textContent = '';
+  $('status_wood').textContent = '';
+  $('status_signboard').textContent = '';
+  $('status_coin').textContent = '';
+
+  $('newAvImg').value = '';
+  $('snd_car').value = '';
+  $('snd_wood').value = '';
+  $('snd_signboard').value = '';
+  $('snd_coin').value = '';
+
+  renderAvatarList();
+  showMsg('Edit cancelled.', false);
+};
+
+window.clearAudioField = function(key) {
+  if (currentEditData[key] !== undefined) {
+    currentEditData[key] = '';
+    var name = key.replace('sound_', '');
+    $('status_' + name).textContent = 'Sound removed (Click Update to apply)';
+  }
+};
+
+window.setActiveAvatar = async function(id) {
+  showMsg('Setting active avatar...', false);
+  await sb.from('avatars').update({ is_active: false }).neq('id', 0);
+  await sb.from('avatars').update({ is_active: true }).eq('id', id);
+  showMsg('Active avatar set successfully.', false);
+  await loadAvatars();
+};
+
+window.deleteAvatar = async function(id) {
+  if (!confirm('Are you sure you want to delete this avatar?')) return;
+  showMsg('Deleting avatar...', false);
+  var res = await sb.from('avatars').delete().eq('id', id);
+  if (res.error) return showMsg('Delete error: ' + res.error.message, true);
+  if (editingId === id) cancelEditMode();
+  showMsg('Avatar deleted successfully.', false);
+  await loadAvatars();
+};
+
+async function doSaveAvatar() {
+  var name = $('newAvName').value.trim() || 'Player Avatar';
+  var imgFile = $('newAvImg').files[0];
+
+  if (!editingId && !imgFile) {
+    return showMsg('Please select an Avatar Image!', true);
+  }
+
+  try {
+    showMsg('Uploading and saving...', false);
+    
+    var imgUrl = currentEditData.image_url;
+    var carUrl = currentEditData.sound_car;
+    var woodUrl = currentEditData.sound_wood;
+    var signUrl = currentEditData.sound_signboard;
+    var coinUrl = currentEditData.sound_coin;
+
+    if (imgFile) imgUrl = await uploadFile(imgFile, 'avatars');
+    if ($('snd_car').files[0]) carUrl = await uploadFile($('snd_car').files[0], 'sounds');
+    if ($('snd_wood').files[0]) woodUrl = await uploadFile($('snd_wood').files[0], 'sounds');
+    if ($('snd_signboard').files[0]) signUrl = await uploadFile($('snd_signboard').files[0], 'sounds');
+    if ($('snd_coin').files[0]) coinUrl = await uploadFile($('snd_coin').files[0], 'sounds');
+
+    if (editingId) {
+      var resUp = await sb.from('avatars').update({
+        name: name,
+        image_url: imgUrl,
+        sound_car: carUrl,
+        sound_wood: woodUrl,
+        sound_signboard: signUrl,
+        sound_coin: coinUrl
+      }).eq('id', editingId);
+
+      if (resUp.error) throw resUp.error;
+      showMsg('Avatar ' + name + ' updated successfully.', false);
+      cancelEditMode();
+    } else {
+      var isFirst = avatars.length === 0;
+      var resIns = await sb.from('avatars').insert({
+        name: name,
+        image_url: imgUrl,
+        sound_car: carUrl,
+        sound_wood: woodUrl,
+        sound_signboard: signUrl,
+        sound_coin: coinUrl,
+        is_active: isFirst
+      });
+
+      if (resIns.error) throw resIns.error;
+      showMsg('New avatar ' + name + ' saved successfully.', false);
+      cancelEditMode();
+    }
+
+    await loadAvatars();
+  } catch (err) {
+    showMsg('Save Error: ' + err.message, true);
+  }
+}
+
+async function doLogin() {
+  var email = $('em').value.trim();
+  var password = $('pw').value;
+
+  if (!email || !password) {
+    return showMsg('Please enter both Email and Password.', true);
+  }
+
+  showMsg('Signing in... Please wait.', false);
+  try {
+    var res = await sb.auth.signInWithPassword({ email: email, password: password });
+
+    if (res.error) {
+      return showMsg('Login failed: ' + res.error.message, true);
+    }
+
+    showMsg('Login successful!', false);
+    $('loginCard').classList.add('hidden');
+    $('panel').classList.remove('hidden');
+    await loadAvatars();
+  } catch (err) {
+    showMsg('Connection Error: ' + err.message, true);
+  }
+}
+
+async function doLogout() {
+  await sb.auth.signOut();
+  $('panel').classList.add('hidden');
+  $('loginCard').classList.remove('hidden');
+  $('em').value = '';
+  $('pw').value = '';
+  showMsg('Logged out.', false);
+}
+
+window.onload = function() {
+  sb.auth.getSession().then(function(res) {
+    if (res && res.data && res.data.session && res.data.session.user) {
+      $('loginCard').classList.add('hidden');
+      $('panel').classList.remove('hidden');
+      loadAvatars();
+    } else {
+      $('loginCard').classList.remove('hidden');
+      $('panel').classList.add('hidden');
+    }
+  }).catch(function() {
+    $('loginCard').classList.remove('hidden');
+    $('panel').classList.add('hidden');
+  });
+};
+</script>
+</body>
+</html>
