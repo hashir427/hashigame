@@ -3,19 +3,31 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-<!-- App Monogram & PWA Settings -->
+<title>Road Runner 3D</title>
+
+<!-- PWA & App Icons -->
 <link rel="manifest" href="manifest.json">
 <link rel="icon" type="image/png" href="logo.png">
 <link rel="apple-touch-icon" href="logo.png">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#ffc107">
-<title>Road Runner 3D - High Detail Edition</title>
+
+<script>
+  // Safe service worker registration (prevents 404 console break)
+  if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('./sw.js').catch(() => {});
+    });
+  }
+</script>
+
 <style>
   * { box-sizing: border-box; }
   html, body {
     margin: 0;
+    padding: 0;
+    width: 100%;
     height: 100%;
     background: #060911;
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
@@ -29,9 +41,7 @@
     position: relative;
     width: 100vw;
     height: 100vh;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    overflow: hidden;
   }
   #gameCanvas {
     width: 100%;
@@ -39,46 +49,44 @@
     display: block;
   }
 
-  /* TOP HUD */
+  /* TOP STATUS HUD (ALWAYS VISIBLE OVER ALL MENUS) */
   .top-hud {
     position: absolute;
-    top: calc(env(safe-area-inset-top, 6px) + 6px);
+    top: calc(env(safe-area-inset-top, 8px) + 8px);
     left: 8px;
     right: 8px;
     display: flex;
-    justify-content: space-between;
+    justify-content: flex-start;
     align-items: center;
-    gap: 4px;
+    gap: 6px;
     pointer-events: none;
-    z-index: 10;
+    z-index: 10005;
   }
   .hud-badge {
-    background: rgba(13, 20, 36, 0.88);
-    backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);
-    padding: 6px 9px;
+    background: rgba(13, 20, 36, 0.92);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    padding: 6px 10px;
     border-radius: 12px;
-    border: 1px solid rgba(255, 255, 255, 0.15);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.6);
+    border: 1px solid rgba(255, 255, 255, 0.22);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.7);
     font-size: 12px;
     font-weight: 800;
-    display: flex;
+    display: inline-flex;
     align-items: center;
     justify-content: center;
     white-space: nowrap;
-    flex: 1;
-    min-width: 0;
+    pointer-events: auto;
   }
-  .score-badge { color: #00e5ff; text-shadow: 0 0 8px rgba(0,229,255,0.4); }
-  .speed-badge { color: #00e676; text-shadow: 0 0 8px rgba(0,230,118,0.4); }
-  .coin-badge  { color: #ffc107; text-shadow: 0 0 8px rgba(255,193,7,0.4); }
+  .score-badge { color: #00e5ff; }
+  .speed-badge { color: #00e676; }
+  .coin-badge  { color: #ffc107; }
 
   .lives-container {
-    background: rgba(255, 23, 68, 0.2);
-    border: 1px solid rgba(255, 23, 68, 0.5);
+    background: rgba(255, 23, 68, 0.28);
+    border: 1px solid rgba(255, 23, 68, 0.65);
+    padding: 4px 8px;
     gap: 2px;
-    flex: 0 0 auto;
-    padding: 6px 8px;
   }
   .heart-unit {
     display: inline-block;
@@ -99,24 +107,24 @@
     50% { transform: scale(1.3) rotate(-15deg); }
   }
 
-  /* ACTION DOCK */
+  /* RIGHT SIDE VERTICAL ACTION COLUMN (ALWAYS VISIBLE & CLICKABLE) */
   .side-actions-column {
     position: absolute;
-    top: calc(env(safe-area-inset-top, 8px) + 50px);
-    right: 10px;
+    top: calc(env(safe-area-inset-top, 8px) + 52px);
+    right: 8px;
     display: flex;
     flex-direction: column;
     gap: 8px;
     pointer-events: auto;
-    z-index: 10;
+    z-index: 10005;
   }
   .hud-btn-action {
-    background: rgba(15, 23, 42, 0.9);
+    background: rgba(15, 23, 42, 0.94);
     backdrop-filter: blur(10px);
     -webkit-backdrop-filter: blur(10px);
-    border: 1.5px solid rgba(255, 255, 255, 0.2);
+    border: 1.5px solid rgba(255, 255, 255, 0.25);
     color: #fff;
-    padding: 7px 11px;
+    padding: 8px 12px;
     border-radius: 12px;
     font-size: 11px;
     font-weight: 800;
@@ -124,46 +132,16 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    box-shadow: 0 4px 14px rgba(0,0,0,0.5);
+    box-shadow: 0 4px 14px rgba(0,0,0,0.6);
     white-space: nowrap;
-    text-align: center;
     user-select: none;
-    transition: transform 0.1s ease;
+    min-width: 68px;
   }
   .hud-btn-action:active { transform: scale(0.92); }
   #camViewBtn { border-color: #00e5ff; color: #00e5ff; }
   #mapBtn { border-color: #ff5722; color: #ffab91; }
   #timeBtn { border-color: #fbc02d; color: #fff9c4; }
   #pauseBtn { border-color: #ffc107; color: #ffc107; font-size: 13px; }
-
-  @media (max-width: 600px) {
-    .top-hud {
-      gap: 3px;
-      left: 6px;
-      right: 6px;
-    }
-    .hud-badge {
-      padding: 5px 6px;
-      font-size: 11px;
-    }
-    .heart-unit { font-size: 11px; }
-
-    .side-actions-column {
-      top: auto;
-      bottom: calc(env(safe-area-inset-bottom, 8px) + 8px);
-      left: 8px;
-      right: 8px;
-      flex-direction: row;
-      justify-content: space-between;
-      gap: 6px;
-    }
-    .hud-btn-action {
-      flex: 1;
-      padding: 8px 4px;
-      font-size: 10px;
-      border-radius: 10px;
-    }
-  }
 
   /* AVATAR CAROUSEL */
   .avatar-carousel {
@@ -223,7 +201,7 @@
     align-items: center;
     justify-content: center;
     pointer-events: none;
-    z-index: 15;
+    z-index: 10006;
     display: none;
   }
   #countdownText {
@@ -245,7 +223,7 @@
     inset: 0;
     background: radial-gradient(circle, transparent 40%, rgba(255, 0, 50, 0.65) 100%);
     pointer-events: none;
-    z-index: 12;
+    z-index: 10004;
     opacity: 0;
     transition: opacity 0.1s ease;
   }
@@ -261,7 +239,7 @@
     backdrop-filter: blur(14px);
     text-align: center;
     padding: 16px;
-    z-index: 20;
+    z-index: 10000;
   }
   .overlay.hidden { display: none; }
   h1 { margin: 0 0 4px; font-size: 28px; color: #ffc107; text-shadow: 0 4px 20px rgba(255,193,7,0.6); }
@@ -332,7 +310,7 @@
     <div class="hud-badge coin-badge" id="hudCoins">🪙 0</div>
   </div>
 
-  <!-- CONTROL ACTIONS DOCK -->
+  <!-- RIGHT ACTION COLUMN -->
   <div class="side-actions-column">
     <div class="hud-btn-action" id="camViewBtn">🎥 View</div>
     <div class="hud-btn-action" id="mapBtn">🏙️ Map</div>
@@ -347,6 +325,7 @@
 
   <!-- START OVERLAY -->
   <div id="start" class="overlay">
+    <img src="logo.png" style="width: 85px; height: 85px; object-fit: contain; border-radius: 50%; border: 2px solid #ffc107; box-shadow: 0 0 15px rgba(255,193,7,0.4); margin-bottom: 8px;" alt="Logo" onerror="this.style.display='none'">
     <h1>🏃 ROAD RUNNER 3D</h1>
     <div id="startBestScore" class="best-display">🏆 BEST: 0</div>
 
@@ -361,7 +340,7 @@
 
     <div class="tips">
       • Swipe Left/Right to Move | Up to JUMP 🚗<br>
-      • Real aerodynamic cars in strict lanes!
+      • Use right side buttons anytime to change Views & Maps!
     </div>
     <button class="action-btn" id="startBtn">START</button>
   </div>
@@ -456,7 +435,7 @@ function playSynthesizedSound(type) {
   }
 }
 
-// Procedural avatars
+// Procedural avatars fallback
 function generateProceduralAvatar(theme) {
   const cv = document.createElement('canvas');
   cv.width = 400; cv.height = 600;
@@ -805,7 +784,7 @@ for (let i = 0; i < 24; i++) {
   });
 }
 
-// Highway Poles & Guardrails
+// Highway Poles & Infrastructure
 const highwayInfrastructureGroup = new THREE.Group();
 scene.add(highwayInfrastructureGroup);
 
@@ -1015,7 +994,7 @@ document.getElementById('timeBtn').onclick = () => {
   updateEnvironment();
 };
 
-// ==================== REALISTIC LOW-POLY VEHICLE (NO DABBAY) ====================
+// ==================== REALISTIC LOW-POLY VEHICLE ====================
 function createRealisticCarMesh(vehicleCategory = 'sports') {
   const car = new THREE.Group();
 
@@ -1034,7 +1013,6 @@ function createRealisticCarMesh(vehicleCategory = 'sports') {
   const headlightMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
   const taillightMat = new THREE.MeshBasicMaterial({ color: 0xff1744 });
 
-  // 1. Aerodynamic Lower Body Hull (Tapered Wedge)
   const bodyLength = 4.2;
   const bodyWidth = 1.95;
   const bodyHeight = 0.52;
@@ -1047,7 +1025,6 @@ function createRealisticCarMesh(vehicleCategory = 'sports') {
   mainHull.castShadow = true;
   car.add(mainHull);
 
-  // 2. Smooth Cabin Cockpit (Aerodynamic Dome)
   const cabinGeo = new THREE.SphereGeometry(1.0, 12, 10);
   const cabin = new THREE.Mesh(cabinGeo, darkGlassMat);
   cabin.scale.set(0.78, 0.52, 1.35);
@@ -1055,22 +1032,18 @@ function createRealisticCarMesh(vehicleCategory = 'sports') {
   cabin.castShadow = true;
   car.add(cabin);
 
-  // Painted Roof Strip
   const roofStrip = new THREE.Mesh(new THREE.BoxGeometry(1.1, 0.06, 1.4), paintMat);
   roofStrip.position.set(0, 1.25, -0.25);
   car.add(roofStrip);
 
-  // 3. Carbon Fiber Front Splitter & Low Bumper
   const splitter = new THREE.Mesh(new THREE.BoxGeometry(1.88, 0.12, 0.4), blackTrimMat);
   splitter.position.set(0, 0.32, 2.05);
   car.add(splitter);
 
-  // Front Mesh Grille
   const grille = new THREE.Mesh(new THREE.BoxGeometry(1.3, 0.22, 0.08), blackTrimMat);
   grille.position.set(0, 0.52, 2.05);
   car.add(grille);
 
-  // 4. Slanted Sleek Headlights
   const h1 = new THREE.Mesh(new THREE.BoxGeometry(0.38, 0.14, 0.1), headlightMat);
   h1.position.set(-0.64, 0.68, 2.02);
   h1.rotation.y = -0.15;
@@ -1079,7 +1052,6 @@ function createRealisticCarMesh(vehicleCategory = 'sports') {
   h2.rotation.y = 0.15;
   car.add(h1, h2);
 
-  // 5. Rear LED Lightbar & Diffuser
   const tailBar = new THREE.Mesh(new THREE.BoxGeometry(1.7, 0.12, 0.08), taillightMat);
   tailBar.position.set(0, 0.72, -2.06);
   car.add(tailBar);
@@ -1088,7 +1060,6 @@ function createRealisticCarMesh(vehicleCategory = 'sports') {
   diffuser.position.set(0, 0.36, -1.98);
   car.add(diffuser);
 
-  // Twin Chrome Exhausts
   [-0.45, 0.45].forEach(exX => {
     const pipe = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 0.25, 10), chromeMat);
     pipe.rotation.x = Math.PI / 2;
@@ -1096,7 +1067,6 @@ function createRealisticCarMesh(vehicleCategory = 'sports') {
     car.add(pipe);
   });
 
-  // 6. GT Sports Rear Wing / Spoiler
   const wing = new THREE.Mesh(new THREE.BoxGeometry(1.75, 0.05, 0.32), blackTrimMat);
   wing.position.set(0, 1.25, -1.82);
   const leftStalk = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.35, 0.12), blackTrimMat);
@@ -1105,14 +1075,12 @@ function createRealisticCarMesh(vehicleCategory = 'sports') {
   rightStalk.position.x = 0.55;
   car.add(wing, leftStalk, rightStalk);
 
-  // Side Mirrors
   [-0.92, 0.92].forEach(mX => {
     const mirror = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.1, 0.12), paintMat);
     mirror.position.set(mX, 0.95, 0.4);
     car.add(mirror);
   });
 
-  // 7. Alloy Wheels with 5-Spoke Chrome Rims
   const wheelsArray = [];
   const tireGeo = new THREE.CylinderGeometry(0.42, 0.42, 0.32, 18);
   const rimGeo = new THREE.CylinderGeometry(0.25, 0.25, 0.33, 10);
@@ -1326,7 +1294,6 @@ function spawnTrafficVehicle(laneIndex, zDistance) {
 
 function spawnObstacles() {
   const r = Math.random();
-  // Spawn distance pushed back from -140 to -170 so traffic doesn't pop up instantly
   const spawnZ = -170;
 
   if (r < 0.72) {
@@ -1604,7 +1571,7 @@ function animate() {
       spawnTimer = Math.max(0.48, 1.45 - (speed - INITIAL_SPEED) * 0.012);
     }
 
-    // ==================== STRAIGHT TRAFFIC FORWARD ====================
+    // Straight traffic movement
     for (let i = items.length - 1; i >= 0; i--) {
       const it = items[i];
 
